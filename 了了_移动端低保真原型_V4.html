@@ -1318,7 +1318,8 @@
     const LiaoliaoQuery = new URLSearchParams(window.location.search);
     window.LIAOLIAO_CONFIG = window.LIAOLIAO_CONFIG || {
       apiBaseUrl: LiaoliaoQuery.get("apiBaseUrl") || "/api",
-      mockMode: LiaoliaoQuery.get("mock") !== "false",
+      // Deployed pages use the backend by default; add ?mock=true only for local scripted demos.
+      mockMode: LiaoliaoQuery.get("mock") === "true",
       h5Token: LiaoliaoQuery.get("token") || "demo_invite_token"
     };
 
