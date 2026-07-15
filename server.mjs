@@ -31,7 +31,7 @@ if (!provider) {
 const LLM_API_KEY = process.env.LLM_API_KEY || provider.legacyKey || "";
 const LLM_BASE_URL = (process.env.LLM_BASE_URL || provider.baseURL).replace(/\/$/, "");
 const MODEL = process.env.LLM_MODEL || process.env.OPENAI_MODEL || provider.defaultModel;
-const PUBLIC_BASE_URL = (process.env.PUBLIC_BASE_URL || `http://localhost:${PORT}`).replace(/\/$/, "");
+const PUBLIC_BASE_URL = (process.env.PUBLIC_BASE_URL || "").replace(/\/$/, "");
 const H5_API_BASE_URL = process.env.H5_API_BASE_URL || "/api";
 const CORS_ORIGIN = process.env.CORS_ORIGIN || "";
 const MAX_HISTORY_MESSAGES = 16;
@@ -41,6 +41,7 @@ if (!fs.existsSync(APP_FILE) || !fs.existsSync(AGENT_FILE)) {
 }
 
 const app = express();
+app.set("trust proxy", true);
 const llm = LLM_API_KEY ? new OpenAI({ apiKey: LLM_API_KEY, baseURL: LLM_BASE_URL }) : null;
 const tasks = new Map();
 const invitations = new Map();
@@ -60,6 +61,18 @@ app.use((req, res, next) => {
 
 function createId(prefix) {
   return `${prefix}_${crypto.randomUUID()}`;
+}
+
+function resolvePublicBaseUrl(req) {
+  const forwardedHost = req.get("x-forwarded-host") || req.get("host");
+  const forwardedProtocol = req.get("x-forwarded-proto") || req.protocol;
+  const protocol = (forwardedProtocol || "http").split(",")[0].trim();
+  const requestBaseUrl = forwardedHost ? `${protocol}://${forwardedHost}`.replace(/\/$/, "") : "";
+  const configuredIsLocal = /^https?:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?$/i.test(PUBLIC_BASE_URL);
+  const requestIsRemote = requestBaseUrl && !/^https?:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?$/i.test(requestBaseUrl);
+
+  if (PUBLIC_BASE_URL && !(configuredIsLocal && requestIsRemote)) return PUBLIC_BASE_URL;
+  return requestBaseUrl || PUBLIC_BASE_URL || `http://localhost:${PORT}`;
 }
 
 function readAgentMarkdown() {
@@ -299,7 +312,7 @@ app.post("/api/tasks/:taskId/invitations", async (req, res, next) => {
     if (!task) return res.status(404).json({ message: "沟通任务不存在。" });
 
     const token = crypto.randomBytes(18).toString("hex");
-    const h5Link = `${PUBLIC_BASE_URL}/?mock=false&token=${token}&apiBaseUrl=${encodeURIComponent(H5_API_BASE_URL)}`;
+    const h5Link = `${resolvePublicBaseUrl(req)}/?mock=false&token=${token}&apiBaseUrl=${encodeURIComponent(H5_API_BASE_URL)}`;
     const invitation = { token, taskId: task.id, createdAt: new Date().toISOString() };
     const invitationMessage = buildInvitationMessage(task);
     invitations.set(token, invitation);
