@@ -1,0 +1,15 @@
+{
+  "name": "liaoliao-demo",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch server.mjs",
+    "start": "node server.mjs"
+  },
+  "dependencies": {
+    "dotenv": "^16.6.1",
+    "express": "^5.1.0",
+    "openai": "^5.23.0"
+  }
+}
